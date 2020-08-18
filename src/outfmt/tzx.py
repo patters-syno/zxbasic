@@ -127,12 +127,12 @@ class TZX(CodeEmitter):
         _bytes = [self.BLOCK_TYPE_DATA] + [(int(x) & 0xFF) for x in _bytes]  # & 0xFF truncates to bytes
         self.standard_block(_bytes)
 
-    def save_program(self, title, bytes, line=32768):
+    def save_program(self, title, bytes_, line=32768):
         """ Saves the given bytes as a BASIC program.
         """
-        self.standard_program_header(title, len(bytes), line)
-        bytes = [self.BLOCK_TYPE_DATA] + [(int(x) & 0xFF) for x in bytes]  # & 0xFF truncates to bytes
-        self.standard_block(bytes)
+        self.standard_program_header(title, len(bytes_), line)
+        bytes_ = [self.BLOCK_TYPE_DATA] + [(int(x) & 0xFF) for x in bytes_]  # & 0xFF truncates to bytes
+        self.standard_block(bytes_)
 
     def emit(self, output_filename, program_name, loader_bytes, entry_point,
              program_bytes, aux_bin_blocks, aux_headless_bin_blocks):

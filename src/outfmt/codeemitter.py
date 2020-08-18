@@ -11,9 +11,13 @@
 # The code emission interface.
 # --------------------------------------------
 
+from abc import ABC, abstractmethod
 
-class CodeEmitter(object):
+
+class CodeEmitter(ABC):
     """ The base code emission interface.
     """
-
-    pass
+    @abstractmethod
+    def emit(self, output_filename, program_name, loader_bytes, entry_point,
+             program_bytes, aux_bin_blocks, aux_headless_bin_blocks):
+        pass
