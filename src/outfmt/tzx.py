@@ -13,7 +13,7 @@
 # --------------------------------------------
 
 
-from .codeemitter import CodeEmitter
+from .code_emitter import CodeEmitter
 
 
 class TZX(CodeEmitter):

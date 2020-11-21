@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from .binary import BinaryEmitter
-from .codeemitter import CodeEmitter
+from .code_emitter import CodeEmitter
 from .tzx import TZX
 from .tap import TAP
 

@@ -11,7 +11,7 @@
 # The code emission interface.
 # --------------------------------------------
 
-from .codeemitter import CodeEmitter
+from .code_emitter import CodeEmitter
 
 
 class BinaryEmitter(CodeEmitter):
