@@ -96,6 +96,8 @@ def main(args=None, emitter=None):
                         help="Sets output format to tzx (default is .bin)")
     parser.add_argument('-t', '--tap', action='store_true',
                         help="Sets output format to tap (default is .bin)")
+    parser.add_argument('--obj', action='store_true',
+                        help="Sets output format to obj (default is .bin)")
     parser.add_argument('-B', '--BASIC', action='store_true', dest='basic',
                         help="Creates a BASIC loader which loads the rest of the CODE. Requires -T ot -t")
     parser.add_argument('-a', '--autorun', action='store_true',
@@ -208,8 +210,8 @@ def main(args=None, emitter=None):
     debug.ENABLED = OPTIONS.Debug
 
     if int(options.tzx) + int(options.tap) + int(options.asm) + int(options.emit_backend) + \
-            int(options.parse_only) > 1:
-        parser.error("Options --tap, --tzx, --emit-backend, --parse-only and --asm are mutually exclusive")
+            int(options.parse_only) + int(options.obj) > 1:
+        parser.error("Options --tap, --tzx, --obj, --emit-backend, --parse-only and --asm are mutually exclusive")
         return 3
 
     if options.basic and not options.tzx and not options.tap:
@@ -235,6 +237,8 @@ def main(args=None, emitter=None):
         OPTIONS.output_file_type = 'asm'
     elif options.emit_backend:
         OPTIONS.output_file_type = 'ic'
+    elif options.obj:
+        OPTIONS.output_file_type = 'obj'
 
     args = [options.PROGRAM]
     if not os.path.exists(options.PROGRAM):

@@ -16,11 +16,17 @@ import os
 import argparse
 
 from . import asmparse
+from . import container
+from . import asm
+from . import expr
+
 from src.libzxbpp import zxbpp
 
 import src.api.config
 from src.api.config import OPTIONS
 from src.api import global_
+from src.api.errmsg import warning
+
 
 # Release version
 VERSION = '1.13.1'
@@ -120,21 +126,21 @@ def main(args=None):
         return 1
 
     if not asmparse.MEMORY.memory_bytes:  # empty seq.
-        asmparse.warning(0, "Nothing to assemble. Exiting...")
+        warning(0, "Nothing to assemble. Exiting...")
         return 0
 
     current_org = max(asmparse.MEMORY.memory_bytes.keys() or [0]) + 1
 
     for label, line in asmparse.INITS:
-        expr_label = asmparse.Expr.makenode(asmparse.Container(asmparse.MEMORY.get_label(label, line), line))
-        asmparse.MEMORY.add_instruction(asmparse.Asm(0, 'CALL NN', expr_label))
+        expr_label = expr.Expr.makenode(container.Container(asmparse.MEMORY.get_label(label, line), line))
+        asmparse.MEMORY.add_instruction(asm.Asm(0, 'CALL NN', expr_label))
 
     if len(asmparse.INITS) > 0:
         if asmparse.AUTORUN_ADDR is not None:
-            asmparse.MEMORY.add_instruction(asmparse.Asm(0, 'JP NN', asmparse.AUTORUN_ADDR))
+            asmparse.MEMORY.add_instruction(asm.Asm(0, 'JP NN', asmparse.AUTORUN_ADDR))
         else:
             asmparse.MEMORY.add_instruction(
-                asmparse.Asm(0, 'JP NN', min(asmparse.MEMORY.orgs.keys())))  # To the beginning of binary
+                asm.Asm(0, 'JP NN', min(asmparse.MEMORY.orgs.keys())))  # To the beginning of binary
 
         asmparse.AUTORUN_ADDR = current_org
 
