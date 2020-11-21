@@ -48,7 +48,6 @@ def num2bytes(x, bytes_):
 class InvalidMnemonicError(Error):
     """ Exception raised when an invalid Mnemonic has been emitted.
     """
-
     def __init__(self, mnemo):
         self.msg = "Invalid mnemonic '%s'" % mnemo
         self.mnemo = mnemo
@@ -57,7 +56,6 @@ class InvalidMnemonicError(Error):
 class InvalidArgError(Error):
     """ Exception raised when an invalid argument has been emitted.
     """
-
     def __init__(self, arg):
         self.msg = "Invalid argument '%s'. It must be an integer." % str(arg)
         self.mnemo = arg
@@ -66,7 +64,6 @@ class InvalidArgError(Error):
 class InternalMismatchSizeError(Error):
     """ Exception raised when an invalid instruction length has been emitted.
     """
-
     def __init__(self, current_size, asm):
         a = '' if current_size == 1 else 's'
         b = '' if asm.size == 1 else 's'
@@ -164,7 +161,6 @@ class Asm(AsmInstruction):
 
     It will also record source line
     """
-
     def __init__(self, lineno, asm, arg=None):
         self.lineno = lineno
 
@@ -232,8 +228,7 @@ class Asm(AsmInstruction):
         return result
 
     def argval(self):
-        """ Solve args values or raise errors if not
-        defined yet
+        """ Solve args values or raise errors if not defined yet
         """
         if gl.has_errors:
             return [None]
