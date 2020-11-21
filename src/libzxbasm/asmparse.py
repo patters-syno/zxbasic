@@ -27,7 +27,7 @@ from src.api.errmsg import warning
 from src.api import global_ as gl
 import src.api.utils
 from src.libzxbpp import zxbpp
-from .. import outfmt
+from src import outfmt
 
 LEXER = asmlex.Lexer()
 
@@ -1548,10 +1548,8 @@ def generate_binary(outputfname, format_, progname='', binary_files=None, headle
             program.add_line([['REM'], ['RANDOMIZE', program.token('USR'), AUTORUN_ADDR]])
 
     if emitter is None:
-        if format_ in ('tap', 'tzx'):
-            emitter = {'tap': outfmt.TAP, 'tzx': outfmt.TZX}[format_]()
-        else:
-            emitter = outfmt.BinaryEmitter()
+        assert format_ in outfmt.EMITTERS, f"Invalid output file format '{format_}'"
+        emitter = outfmt.EMITTERS[format_]()
 
     loader_bytes = None
     if OPTIONS.use_loader:
