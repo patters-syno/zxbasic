@@ -28,17 +28,17 @@ Z80_16REGS = {'AF': ('A', 'F'), 'BC': ('B', 'C'), 'DE': ('D', 'E'),
               }
 
 
-def num2bytes(x, bytes):
+def num2bytes(x, bytes_):
     """ Returns x converted to a little-endian t-uple of bytes.
     E.g. num2bytes(255, 4) = (255, 0, 0, 0)
     """
     if not isinstance(x, int):  # If it is another "thing", just return ZEROs
-        return tuple([0] * bytes)
+        return tuple([0] * bytes_)
 
-    x = x & ((2 << (bytes * 8)) - 1)  # mask the initial value
+    x = x & ((2 << (bytes_ * 8)) - 1)  # mask the initial value
     result = ()
 
-    for i in range(bytes):
+    for i in range(bytes_):
         result += (x & 0xFF,)
         x >>= 8
 
