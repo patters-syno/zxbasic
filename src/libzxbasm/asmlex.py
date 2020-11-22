@@ -17,11 +17,41 @@ from src.ply import lex
 from src.api.config import OPTIONS
 from src.api.errmsg import error
 
-_tokens = ('STRING', 'NEWLINE', 'CO',
-           'ID', 'COMMA', 'PLUS', 'MINUS', 'LP', 'RP', 'LPP', 'RPP', 'MUL', 'DIV', 'POW', 'MOD',
-           'UMINUS', 'APO', 'INTEGER', 'ADDR',
-           'LSHIFT', 'RSHIFT', 'BAND', 'BOR', 'BXOR'
-           )
+
+class Token:
+    ID = 'ID'
+    INTEGER = 'INTEGER'
+    DEFB = 'DEFB'
+    DEFS = 'DEFS'
+    DEFW = 'DEFW'
+
+
+_tokens = (
+    'STRING',
+    'NEWLINE',
+    'CO',
+    Token.ID,
+    'COMMA',
+    'PLUS',
+    'MINUS',
+    'LP',
+    'RP',
+    'LPP',
+    'RPP',
+    'MUL',
+    'DIV',
+    'POW',
+    'MOD',
+    'UMINUS',
+    'APO',
+    Token.INTEGER,
+    'ADDR',
+    'LSHIFT',
+    'RSHIFT',
+    'BAND',
+    'BOR',
+    'BXOR'
+)
 
 reserved_instructions = {
     'adc': 'ADC',
@@ -122,13 +152,13 @@ zx_next_mnemonics = {
 pseudo = {  # pseudo ops
     'align': 'ALIGN',
     'org': 'ORG',
-    'defb': 'DEFB',
-    'defm': 'DEFB',
-    'db': 'DEFB',
-    'defs': 'DEFS',
-    'defw': 'DEFW',
-    'ds': 'DEFS',
-    'dw': 'DEFW',
+    'defb': Token.DEFB,
+    'defm': Token.DEFB,
+    'db': Token.DEFB,
+    'defs': Token.DEFS,
+    'defw': Token.DEFW,
+    'ds': Token.DEFS,
+    'dw': Token.DEFW,
     'equ': 'EQU',
     'proc': 'PROC',
     'endp': 'ENDP',
@@ -173,7 +203,7 @@ preprocessor = {
 }
 
 # List of token names.
-_tokens = sorted(
+tokens = sorted(set(
     _tokens +
     tuple(reserved_instructions.values()) +
     tuple(pseudo.values()) +
@@ -182,7 +212,7 @@ _tokens = sorted(
     tuple(flags.values()) +
     tuple(zx_next_mnemonics.values()) +
     tuple(preprocessor.values())
-)
+))
 
 keywords = set(
     flags.keys()).union(
@@ -193,27 +223,17 @@ keywords = set(
     zx_next_mnemonics.keys())
 
 
-def get_uniques(l):
-    """ Returns a list with no repeated elements.
-    """
-    result = []
-
-    for i in l:
-        if i not in result:
-            result.append(i)
-
-    return result
+class State:
+    INITIAL = 'INITIAL'
+    PREPROC = 'preproc'
 
 
-tokens = get_uniques(_tokens)
-
-
-class Lexer(object):
+class Lexer:
     """ Own class lexer to allow multiple instances.
     This lexer is just a wrapper of the current FILESTACK[-1] lexer
     """
     states = (
-        ('preproc', 'exclusive'),
+        (State.PREPROC, 'exclusive'),
     )
 
     # -------------- TOKEN ACTIONS --------------
@@ -241,7 +261,7 @@ class Lexer(object):
         r"'.'"  # A single char
 
         t.value = ord(t.value[1])
-        t.type = 'INTEGER'
+        t.type = Token.INTEGER
         return t
 
     def t_HEXA(self, t):
@@ -255,7 +275,7 @@ class Lexer(object):
             t.value = t.value[:-1]  # Remove last 'h'
 
         t.value = int(t.value, 16)  # Convert to decimal
-        t.type = 'INTEGER'
+        t.type = Token.INTEGER
         return t
 
     def t_BIN(self, t):
@@ -270,7 +290,7 @@ class Lexer(object):
             t.value = t.value[:-1]  # Remove last 'b'
 
         t.value = int(t.value, 2)  # Convert to decimal
-        t.type = 'INTEGER'
+        t.type = Token.INTEGER
         return t
 
     def t_INITIAL_preproc_INTEGER(self, t):
@@ -306,15 +326,15 @@ class Lexer(object):
             if t.type is not None:
                 return t
 
-        t.type = regs16.get(id_, 'ID')
-        if t.type == 'ID':
+        t.type = regs16.get(id_, Token.ID)
+        if t.type == Token.ID:
             t.value = tmp  # Restores original value
 
         return t
 
     def t_preproc_ID(self, t):
         r'[_a-zA-Z][_a-zA-Z0-9]*'  # preprocessor directives
-        t.type = preprocessor.get(t.value.lower(), 'ID')
+        t.type = preprocessor.get(t.value.lower(), Token.ID)
         return t
 
     def t_COMMA(self, t):
@@ -406,14 +426,14 @@ class Lexer(object):
     def t_INITIAL_preproc_NEWLINE(self, t):
         r'\r?\n'
         t.lexer.lineno += 1
-        t.lexer.begin('INITIAL')
+        t.lexer.begin(State.INITIAL)
         return t
 
     def t_INITIAL_SHARP(self, t):
         r'\#'
 
         if self.find_column(t) == 1:
-            t.lexer.begin('preproc')
+            t.lexer.begin(State.PREPROC)
         else:
             self.t_INITIAL_preproc_error(t)
 
@@ -434,10 +454,10 @@ class Lexer(object):
         self.tokens = tokens
         self.next_token = None  # if set to something, this will be returned once
 
-    def input(self, str):
+    def input(self, input_stream: str):
         """ Defines input string, removing current lexer.
         """
-        self.input_data = str
+        self.input_data = input_stream
         self.lex = lex.lex(object=self)
         self.lex.input(self.input_data)
 

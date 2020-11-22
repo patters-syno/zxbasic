@@ -3,83 +3,66 @@
 # vim: ts=4:et:sw=4
 
 import re
+import collections
+
 from typing import List
+from typing import Any
+from typing import Optional
+from typing import Iterable
 
 from src.api import global_ as gl
 from src.api.errmsg import error
 from src.api.errors import Error
 
 from .container import Container
+from .errors import InvalidMnemonicError
+from .errors import InvalidArgError
+from .errors import InternalMismatchSizeError
 from .expr import Expr
 from .z80 import Opcode
 from .z80 import Z80SET
 
+from .asmlex import Token
+
+# ------------------------------------------------
+#  Constants
+# ------------------------------------------------
 
 # Reg. Exp. for counting N args in an asm mnemonic
 ARGre = re.compile(r'\bN+\b')
 
-Z80_re = {}  # Reg. Expr dictionary to cache them
+# Relative jumps
+RELATIVE_JUMPS = ('JR', 'DJNZ')
 
-Z80_8REGS = ('A', 'B', 'C', 'D', 'E', 'H', 'L',
-             'IXh', 'IYh', 'IXl', 'IYl', 'I', 'R')
+# DEFS
+DEFB = Token.DEFB
+DEFS = Token.DEFS
+DEFW = Token.DEFW
 
-Z80_16REGS = {'AF': ('A', 'F'), 'BC': ('B', 'C'), 'DE': ('D', 'E'),
-              'HL': ('H', 'L'), 'SP': (),
-              'IX': ('IXh', 'IXl'), 'IY': ('IYh', 'IYl')
-              }
+DEF_TOKENS = {DEFB, DEFS, DEFW}
 
 
-def num2bytes(x, bytes_):
+def num2bytes(x: Any, length: int) -> List[int]:
     """ Returns x converted to a little-endian t-uple of bytes.
     E.g. num2bytes(255, 4) = (255, 0, 0, 0)
     """
     if not isinstance(x, int):  # If it is another "thing", just return ZEROs
-        return tuple([0] * bytes_)
+        return [0] * length
 
-    x = x & ((2 << (bytes_ * 8)) - 1)  # mask the initial value
-    result = ()
+    x = x & ((2 << (length * 8)) - 1)  # mask the initial value
+    result = []
 
-    for i in range(bytes_):
-        result += (x & 0xFF,)
+    for i in range(length):
+        result.append(x & 0xFF)
         x >>= 8
 
     return result
 
 
-class InvalidMnemonicError(Error):
-    """ Exception raised when an invalid Mnemonic has been emitted.
-    """
-    def __init__(self, mnemo):
-        self.msg = "Invalid mnemonic '%s'" % mnemo
-        self.mnemo = mnemo
-
-
-class InvalidArgError(Error):
-    """ Exception raised when an invalid argument has been emitted.
-    """
-    def __init__(self, arg):
-        self.msg = "Invalid argument '%s'. It must be an integer." % str(arg)
-        self.mnemo = arg
-
-
-class InternalMismatchSizeError(Error):
-    """ Exception raised when an invalid instruction length has been emitted.
-    """
-    def __init__(self, current_size, asm):
-        a = '' if current_size == 1 else 's'
-        b = '' if asm.size == 1 else 's'
-
-        self.msg = ("Invalid instruction [%s] size (%i byte%s). "
-                    "It should be %i byte%s." % (asm.asm, current_size, a,
-                                                 asm.size, b))
-        self.current_size = current_size
-        self.asm = asm
-
-
 class AsmInstruction(Opcode):
     """ Derives from Opcode. This one checks for opcode validity.
     """
-    def __init__(self, asm, arg=None):
+    def __init__(self, asm, arg: Optional[Iterable[Any]] = None):
         """ Parses the given asm instruction and validates
         it against the Z80SET table. Raises InvalidMnemonicError
         if not valid.
@@ -87,15 +70,6 @@ class AsmInstruction(Opcode):
         It uses the Z80SET global dictionary. Args is an optional
         argument (it can be a Label object or a value)
         """
-        if isinstance(arg, list):
-            arg = tuple(arg)
-
-        if arg is None:
-            arg = ()
-
-        if arg is not None and not isinstance(arg, tuple):
-            arg = (arg,)
-
         asm = asm.split(';', 1)  # Try to get comments out, if any
         if len(asm) > 1:
             self.comments = ';' + asm[1]
@@ -103,7 +77,7 @@ class AsmInstruction(Opcode):
             self.comments = ''
 
         asm = asm[0]
-        self.mnemo = asm.upper()
+        self.mnemo: str = asm.upper()
 
         if self.mnemo not in Z80SET.keys():
             raise InvalidMnemonicError(asm)
@@ -112,19 +86,34 @@ class AsmInstruction(Opcode):
 
         super().__init__(asm=asm, time=Z80.T, size=Z80.size, opcode=Z80.opcode)
         self.argbytes = tuple([len(x) for x in ARGre.findall(asm)])
-        self.arg = arg
-        self.arg_num = len(ARGre.findall(asm))
+        self.arg_num: int = len(ARGre.findall(asm))
 
-    def argval(self):
+        if arg is None:
+            arg = []
+        elif not isinstance(arg, collections.Iterable):
+            arg = [arg]
+        else:
+            arg = list(arg)
+
+        self.arg = arg
+
+    @property
+    def arg(self) -> List[Any]:
+        return self._arg
+
+    @arg.setter
+    def arg(self, value: Optional[Iterable[Any]]):
+        self._arg = list(value) if value is not None else []
+
+    def argval(self) -> Optional[List[int]]:
         """ Returns the value of the arg (if any) or None.
         If the arg. is not an integer, an error be triggered.
         """
         if self.arg is None or any(x is None for x in self.arg):
             return None
 
-        for x in self.arg:
-            if not isinstance(x, int):
-                raise InvalidArgError(self.arg)
+        if not all(isinstance(x, int) for x in self.arg):
+            raise InvalidArgError(self.arg)
 
         return self.arg
 
@@ -157,15 +146,15 @@ class AsmInstruction(Opcode):
 
 
 class Asm(AsmInstruction):
-    """ Class extension to AsmInstruction with a short name :-P
-    and will trap some exceptions and convert them to error msgs.
-
-    It will also record source line
+    """ Class extension to AsmInstruction which allows also DEFB, DEFW, DEFS
+    as pseudo-opcodes. These opcodes allow more than 1 argument (list of bytes defined).
+    It will also trap some exceptions and convert them to error msgs and also records
+    source lineno.
     """
-    def __init__(self, lineno, asm, arg=None):
+    def __init__(self, lineno: int, asm, arg=None):
         self.lineno = lineno
 
-        if asm not in ('DEFB', 'DEFS', 'DEFW'):
+        if asm not in DEF_TOKENS:
             try:
                 super().__init__(asm, arg)
             except Error as v:
@@ -181,7 +170,7 @@ class Asm(AsmInstruction):
             self.pending = True
 
             if isinstance(arg, str):
-                self.arg = tuple([Expr(Container(ord(x), lineno)) for x in arg])
+                self.arg = [Expr(Container(ord(x), lineno)) for x in arg]
             else:
                 self.arg = arg
 
@@ -190,10 +179,10 @@ class Asm(AsmInstruction):
     def bytes(self) -> List[int]:
         """ Returns opcodes
         """
-        if self.asm not in ('DEFB', 'DEFS', 'DEFW'):
+        if self.asm not in DEF_TOKENS:
             if self.pending:
                 tmp = self.arg  # Saves current arg temporarily
-                self.arg = tuple([0] * self.arg_num)
+                self.arg = [0] * self.arg_num
                 result = super().bytes()
                 self.arg = tmp  # And recovers it
 
@@ -201,13 +190,13 @@ class Asm(AsmInstruction):
 
             return super().bytes()
 
-        if self.asm == 'DEFB':
+        if self.asm == DEFB:
             if self.pending:
                 return [0] * self.arg_num
 
             return [x & 0xFF for x in self.argval()]
 
-        if self.asm == 'DEFS':
+        if self.asm == DEFS:
             if self.pending:
                 n = self.arg[0]
                 if isinstance(n, Expr):
@@ -234,14 +223,14 @@ class Asm(AsmInstruction):
         if gl.has_errors:
             return [None]
 
-        if self.asm in ('DEFB', 'DEFS', 'DEFW'):
+        if self.asm in DEF_TOKENS:
             return tuple([x.eval() if isinstance(x, Expr) else x for x in self.arg])
 
         self.arg = tuple([x if not isinstance(x, Expr) else x.eval() for x in self.arg])
         if gl.has_errors:
             return [None]
 
-        if self.asm.split(' ')[0] in ('JR', 'DJNZ'):  # A relative jump?
+        if self.asm.split(' ')[0] in RELATIVE_JUMPS:  # A relative jump?
             if self.arg[0] < -128 or self.arg[0] > 127:
                 error(self.lineno, 'Relative jump out of range')
                 return [None]

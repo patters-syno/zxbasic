@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Some constants
+# Some constants and common variables in this module
 
 # Constants
 MAX_MEM = 65535  # Max memory limit
