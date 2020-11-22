@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
 
-class Container:
+from typing import NamedTuple
+from typing import Any
+
+
+class Container(NamedTuple):
     """ Single class container
     """
-    def __init__(self, item, lineno):
-        """ Item to store
-        """
-        self.item = item
-        self.lineno = lineno
+    item: Any
+    lineno: int
