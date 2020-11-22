@@ -3,6 +3,7 @@
 # vim: ts=4:et:sw=4
 
 import re
+from typing import List
 
 from src.api import global_ as gl
 from src.api.errmsg import error
@@ -127,8 +128,8 @@ class AsmInstruction(Opcode):
 
         return self.arg
 
-    def bytes(self):
-        """ Returns a t-uple with instruction bytes (integers)
+    def bytes(self) -> List[int]:
+        """ Returns a list with instruction bytes (integers)
         """
         result = []
         op = self.opcode.split(' ')
@@ -166,7 +167,7 @@ class Asm(AsmInstruction):
 
         if asm not in ('DEFB', 'DEFS', 'DEFW'):
             try:
-                super(Asm, self).__init__(asm, arg)
+                super().__init__(asm, arg)
             except Error as v:
                 error(lineno, v.msg)
                 return
@@ -186,44 +187,44 @@ class Asm(AsmInstruction):
 
             self.arg_num = len(self.arg)
 
-    def bytes(self):
+    def bytes(self) -> List[int]:
         """ Returns opcodes
         """
         if self.asm not in ('DEFB', 'DEFS', 'DEFW'):
             if self.pending:
                 tmp = self.arg  # Saves current arg temporarily
                 self.arg = tuple([0] * self.arg_num)
-                result = super(Asm, self).bytes()
+                result = super().bytes()
                 self.arg = tmp  # And recovers it
 
                 return result
 
-            return super(Asm, self).bytes()
+            return super().bytes()
 
         if self.asm == 'DEFB':
             if self.pending:
-                return tuple([0] * self.arg_num)
+                return [0] * self.arg_num
 
-            return tuple(x & 0xFF for x in self.argval())
+            return [x & 0xFF for x in self.argval()]
 
         if self.asm == 'DEFS':
             if self.pending:
-                N = self.arg[0]
-                if isinstance(N, Expr):
-                    N = N.eval()
-                return tuple([0] * N)  # ??
+                n = self.arg[0]
+                if isinstance(n, Expr):
+                    n = n.eval()
+                return [0] * n
 
             args = self.argval()
             num = args[1] & 0xFF
-            return tuple([num] * args[0])
+            return [num] * args[0]
 
         if self.pending:  # DEFW
-            return tuple([0] * 2 * self.arg_num)
+            return [0] * 2 * self.arg_num
 
-        result = ()
+        result = []
         for i in self.argval():
             x = i & 0xFFFF
-            result += (x & 0xFF, x >> 8)
+            result.extend([x & 0xFF, x >> 8])
 
         return result
 
