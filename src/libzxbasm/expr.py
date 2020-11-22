@@ -93,7 +93,7 @@ class Expr(Ast):
 
         try:
             if isinstance(item, tuple):
-                return tuple([x.try_eval() for x in item])
+                return tuple(x.try_eval() for x in item)
 
             if isinstance(item, list):
                 return [x.try_eval() for x in item]
@@ -115,6 +115,32 @@ class Expr(Ast):
             pass
 
         return None
+
+    def as_rpn(self):
+        """ Returns a list of a stack-machine code representation of the Expression
+        (Reverse Polish Notation)
+        """
+        item = self.symbol.item
+        if isinstance(item, int):
+            return [item]
+
+        if isinstance(item, Label):
+            return [item.name]
+
+        if isinstance(item, tuple):
+            return tuple(x.as_rpn() for x in item)
+
+        if isinstance(item, list):
+            return list(x.as_rpn() for x in item)
+
+        if item == '-' and len(self.children) == 1:
+            return self.left.as_rpn() + ['%NEG']
+
+        if item == '+' and len(self.children) == 1:
+            return self.left.as_rpn()
+
+        return self.left.as_rpn() + self.right.as_rpn() + [f"%{item}"]
+
 
     @classmethod
     def makenode(cls, symbol, *nexts):

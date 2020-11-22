@@ -99,6 +99,8 @@ class AsmInstruction(Opcode):
 
     @property
     def arg(self) -> List[Any]:
+        """ The arguments of the instruction as a list of integers or Expr objects
+        """
         return self._arg
 
     @arg.setter
@@ -153,6 +155,7 @@ class Asm(AsmInstruction):
     """
     def __init__(self, lineno: int, asm, arg=None):
         self.lineno = lineno
+        self.original_args = arg
 
         if asm not in DEF_TOKENS:
             try:
